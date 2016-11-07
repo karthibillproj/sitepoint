@@ -8,6 +8,8 @@ var user = require('./routes/user');
 var http = require('http');
 var path = require('path');
 var passport = require('passport');
+var cookieParser = require('cookie-parser');
+var expressSession = require('express-session');
 var LocalStrategy = require('passport-local').Strategy;
 var mongoose = require('mongoose');
 
@@ -24,6 +26,14 @@ app.use(express.logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded());
 app.use(express.methodOverride());
+
+app.use(cookieParser());
+app.use(expressSession({
+    secret: process.env.SESSION_SECRET || 'secret',
+    resave: false,
+    saveUninitialized: false
+}));
+
 app.use(passport.initialize());
 app.use(passport.session()); 
 app.use(app.router);
@@ -53,6 +63,14 @@ passport.serializeUser(function(user, done) {
 passport.deserializeUser(function(user, done) {
   done(null, user);
 });
+
+function ensureAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+        next();
+    } else {
+        res.send(403);
+    }
+}
 
 
 passport.use(new LocalStrategy(
@@ -119,7 +137,11 @@ passport.use('signup', new LocalStrategy({
 
 
 app.get('/auth', function(req, res, next) {
-  res.sendfile('views/login.html');
+  if(!req.isAuthenticated()){
+     res.sendfile('views/login.html');
+  }else{
+     res.redirect('/auth');
+  }
 });
 
 app.get('/', function(req, res) {
@@ -136,7 +158,11 @@ app.get('/loginFailure' , function(req, res, next){
 });
 
 app.get('/loginSuccess' , function(req, res, next){
-	res.send('Successfully authenticated');
+    if(req.isAuthenticated()){
+ res.sendfile('views/loginSuccess.html');
+  }else{
+     res.redirect('/auth');
+  }
 });
 
 app.post('/login',
